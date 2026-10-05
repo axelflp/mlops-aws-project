@@ -20,8 +20,6 @@ def main():
 
     dataframe.to_csv(csv_buffer, index=False)
 
-    print("4444" + args.region)
-
     s3 = boto3.client(
         "s3",
         region_name=args.region,
