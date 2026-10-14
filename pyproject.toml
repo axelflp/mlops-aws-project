@@ -10,6 +10,8 @@ requires-python = ">=3.11,<3.12"
 dependencies = [
     "boto3",
     "botocore[crt]",
+    "sagemaker[mlops,train,serve]==3.24.0",
+    "scikit-learn==1.4.2",
     "sagemaker",
     "scikit-learn",
     "pandas",
