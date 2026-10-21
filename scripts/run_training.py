@@ -1,0 +1,83 @@
+import argparse
+from datetime import UTC, datetime
+from pathlib import Path
+
+import boto3
+import yaml
+from sagemaker.core.helper.session_helper import Session
+
+from mlops_aws.sagemaker.training_processing import (
+    create_training_processor,
+    run_training,
+)
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+
+def main():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--bucket", required=True)
+    parser.add_argument("--region", default="us-east-1")
+    parser.add_argument("--role-name", required=True)
+    parser.add_argument(
+        "--config",
+        default="configs/training.yaml",
+    )
+
+    args = parser.parse_args()
+
+    with (PROJECT_ROOT / args.config).open() as file:
+        config = yaml.safe_load(file)
+
+    boto_session = boto3.Session(region_name=args.region)
+
+    iam = boto_session.client("iam")
+
+    role_arn = iam.get_role(
+        RoleName=args.role_name
+    )["Role"]["Arn"]
+
+    sagemaker_session = Session(
+        boto_session=boto_session,
+        default_bucket=args.bucket,
+    )
+
+    timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+
+    job_name = f"mlops-aws-train-{timestamp}"
+
+    output_s3_uri = (
+        f"s3://{args.bucket}/"
+        f"{config['output_prefix']}/{job_name}"
+    )
+
+    processor = create_training_processor(
+        role_arn=role_arn,
+        region=args.region,
+        instance_type=config["instance_type"],
+        instance_count=config["instance_count"],
+        volume_size_gb=config["volume_size_gb"],
+        max_runtime_seconds=config["max_runtime_seconds"],
+        framework_version=config["framework_version"],
+        sagemaker_session=sagemaker_session,
+    )
+
+    run_training(
+        processor=processor,
+        source_dir=str(PROJECT_ROOT / "src"),
+        input_s3_uri=(
+            f"s3://{args.bucket}/data/processed/train/train.csv"
+        ),
+        output_s3_uri=output_s3_uri,
+        max_iter=config["max_iter"],
+        random_state=config["random_state"],
+        job_name=job_name,
+    )
+
+    print(f"Training job: {job_name}")
+    print(f"Model artifact: {output_s3_uri}/model.tar.gz")
+
+
+if __name__ == "__main__":
+    main()
