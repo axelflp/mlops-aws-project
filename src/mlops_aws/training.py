@@ -9,7 +9,10 @@ from sklearn.preprocessing import StandardScaler
 from mlops_aws.preprocessing import TARGET_COLUMN
 
 
-def train_model(train_df: pd.DataFrame) -> Pipeline:
+def train_model(train_df: pd.DataFrame, 
+                max_iter: int = 1000,
+                random_state: int =40,
+) -> Pipeline:
     X = train_df.drop(columns=[TARGET_COLUMN])
     y = train_df[TARGET_COLUMN]
 
@@ -18,8 +21,8 @@ def train_model(train_df: pd.DataFrame) -> Pipeline:
             ("scaler", StandardScaler()),
             ("classifier", 
             LogisticRegression(
-                max_iter=1000,
-                random_state=42
+                max_iter=max_iter,
+                random_state=random_state,
                 )
             ),
 
@@ -34,4 +37,5 @@ def train_model(train_df: pd.DataFrame) -> Pipeline:
 def save_model(model: Pipeline, model_dir: str):
     output_path = Path(model_dir)
     output_path.mkdir(parents=True, exist_ok=True)
+    
     joblib.dump(model, output_path / "model.joblib")
